@@ -353,11 +353,12 @@ static inline VkFFTResult VkFFTGeneratePhaseVectors(VkFFTApplication* app, VkFFT
 			else {
 				double double_PI = 3.14159265358979323846264338327950288419716939937510;
 				float* phaseVectors_cast = (float*)phaseVectors;
+				VkFFTUnitTwiddleState twiddleState = { 0.0 };
 				for (pfUINT i = 0; i < FFTPlan->actualFFTSizePerAxis[axis_id][axis_id]; i++) {
 					pfUINT rm = (i * i) % (2 * phaseVectorsNonZeroSize);
 					double angle = double_PI * rm / phaseVectorsNonZeroSize;
 					if ((i < phaseVectorsNonZeroSize) && (!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-						vkfft_unit_twiddle_f32(pfcos(angle),
+						vkfft_unit_twiddle_f32(&twiddleState, pfcos(angle),
 							-pfsin(angle), &phaseVectors_cast[2 * i]);
 					} else {
 						phaseVectors_cast[2 * i] = (i < phaseVectorsNonZeroSize) ? (float)pfcos(angle) : 0;
@@ -615,11 +616,12 @@ static inline VkFFTResult VkFFTGeneratePhaseVectors(VkFFTApplication* app, VkFFT
 			else {
 				double double_PI = 3.14159265358979323846264338327950288419716939937510;
 				float* phaseVectors_cast = (float*)phaseVectors;
+				VkFFTUnitTwiddleState twiddleState = { 0.0 };
 				for (pfUINT i = 0; i < FFTPlan->actualFFTSizePerAxis[axis_id][axis_id]; i++) {
 					pfUINT rm = (i * i) % (2 * phaseVectorsNonZeroSize);
 					double angle = double_PI * rm / phaseVectorsNonZeroSize;
 					if ((i < phaseVectorsNonZeroSize) && (!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-						vkfft_unit_twiddle_f32(pfcos(angle),
+						vkfft_unit_twiddle_f32(&twiddleState, pfcos(angle),
 							pfsin(angle), &phaseVectors_cast[2 * i]);
 					} else {
 						phaseVectors_cast[2 * i] = (i < phaseVectorsNonZeroSize) ? (float)pfcos(angle) : 0;
@@ -1104,13 +1106,14 @@ static inline VkFFTResult VkFFTGenerateRaderFFTKernel(VkFFTApplication* app, VkF
 					axis->specializationConstants.raderContainer[i].raderFFTkernel = (void*)raderFFTkernel;
 					app->raderFFTkernel[write_id] = (void*)raderFFTkernel;
 					app->rader_buffer_size[write_id] = (axis->specializationConstants.raderContainer[i].prime - 1) * sizeof(float) * 2;
+					VkFFTUnitTwiddleState twiddleState = { 0.0 };
 					for (pfUINT j = 0; j < (axis->specializationConstants.raderContainer[i].prime - 1); j++) {//fix later
 						pfUINT g_pow = 1;
 						for (pfUINT t = 0; t < axis->specializationConstants.raderContainer[i].prime - 1 - j; t++) {
 							g_pow = (g_pow * axis->specializationConstants.raderContainer[i].generator) % axis->specializationConstants.raderContainer[i].prime;
 						}
 						if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-							vkfft_unit_twiddle_f32(pfcos(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime),
+							vkfft_unit_twiddle_f32(&twiddleState, pfcos(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime),
 								(-pfsin(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime)), &raderFFTkernel[2 * j]);
 						} else {
 							raderFFTkernel[2 * j] = (float)pfcos(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime);

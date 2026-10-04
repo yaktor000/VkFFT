@@ -985,9 +985,10 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 			for (pfUINT i = 1; i < axis->specializationConstants.numStages; i++) {
 				if ((axis->specializationConstants.stageRadix[i] & (axis->specializationConstants.stageRadix[i] - 1)) == 0) {
 					for (pfUINT k = 0; k < log2(axis->specializationConstants.stageRadix[i]); k++) {
+						VkFFTUnitTwiddleState twiddleState = { 0.0 };
 						for (pfUINT j = 0; j < localStageSize; j++) {
 							if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-								vkfft_unit_twiddle_f32(pfcos(j * double_PI / localStageSize / pow(2, k)),
+								vkfft_unit_twiddle_f32(&twiddleState, pfcos(j * double_PI / localStageSize / pow(2, k)),
 									pfsin(j * double_PI / localStageSize / pow(2, k)), &tempLUT[2 * (j + localStageSum)]);
 							} else {
 								tempLUT[2 * (j + localStageSum)] = (float)pfcos(j * double_PI / localStageSize / pow(2, k));
@@ -998,10 +999,11 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 					}
 				}
 				else if (axis->specializationConstants.rader_generator[i] > 0) {
+					VkFFTUnitTwiddleState twiddleState = { 0.0 };
 					for (pfUINT j = 0; j < localStageSize; j++) {
 						for (pfINT k = (axis->specializationConstants.stageRadix[i] - 1); k >= 0; k--) {
 							if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-								vkfft_unit_twiddle_f32(pfcos(j * 2.0 * k / axis->specializationConstants.stageRadix[i] * double_PI / localStageSize),
+								vkfft_unit_twiddle_f32(&twiddleState, pfcos(j * 2.0 * k / axis->specializationConstants.stageRadix[i] * double_PI / localStageSize),
 									pfsin(j * 2.0 * k / axis->specializationConstants.stageRadix[i] * double_PI / localStageSize), &tempLUT[2 * (k + localStageSum)]);
 							} else {
 								tempLUT[2 * (k + localStageSum)] = (float)pfcos(j * 2.0 * k / axis->specializationConstants.stageRadix[i] * double_PI / localStageSize);
@@ -1013,9 +1015,10 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 				}
 				else {
 					for (pfUINT k = (axis->specializationConstants.stageRadix[i] - 1); k > 0; k--) {
+						VkFFTUnitTwiddleState twiddleState = { 0.0 };
 						for (pfUINT j = 0; j < localStageSize; j++) {
 							if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-								vkfft_unit_twiddle_f32(pfcos(j * 2.0 * k / axis->specializationConstants.stageRadix[i] * double_PI / localStageSize),
+								vkfft_unit_twiddle_f32(&twiddleState, pfcos(j * 2.0 * k / axis->specializationConstants.stageRadix[i] * double_PI / localStageSize),
 									pfsin(j * 2.0 * k / axis->specializationConstants.stageRadix[i] * double_PI / localStageSize), &tempLUT[2 * (j + localStageSum)]);
 							} else {
 								tempLUT[2 * (j + localStageSum)] = (float)pfcos(j * 2.0 * k / axis->specializationConstants.stageRadix[i] * double_PI / localStageSize);
@@ -1032,13 +1035,14 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 				for (pfUINT i = 0; i < axis->specializationConstants.numRaderPrimes; i++) {
 					if (axis->specializationConstants.raderContainer[i].type) {
 						if (!axis->specializationConstants.inline_rader_kernel) {
+							VkFFTUnitTwiddleState twiddleState = { 0.0 };
 							for (pfUINT j = 0; j < (axis->specializationConstants.raderContainer[i].prime - 1); j++) {//fix later
 								pfUINT g_pow = 1;
 								for (pfUINT t = 0; t < axis->specializationConstants.raderContainer[i].prime - 1 - j; t++) {
 									g_pow = (g_pow * axis->specializationConstants.raderContainer[i].generator) % axis->specializationConstants.raderContainer[i].prime;
 								}
 								if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-									vkfft_unit_twiddle_f32((pfcos(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime)),
+									vkfft_unit_twiddle_f32(&twiddleState, (pfcos(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime)),
 										(-pfsin(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime)), &tempLUT[2 * (j + axis->specializationConstants.raderContainer[i].RaderKernelOffsetLUT)]);
 								} else {
 									tempLUT[2 * (j + axis->specializationConstants.raderContainer[i].RaderKernelOffsetLUT)] = (float)(pfcos(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime));
@@ -1053,9 +1057,10 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 						for (pfUINT l = 1; l < axis->specializationConstants.raderContainer[i].numStages; l++) {
 							if ((axis->specializationConstants.raderContainer[i].stageRadix[l] & (axis->specializationConstants.raderContainer[i].stageRadix[l] - 1)) == 0) {
 								for (pfUINT k = 0; k < log2(axis->specializationConstants.raderContainer[i].stageRadix[l]); k++) {
+									VkFFTUnitTwiddleState twiddleState = { 0.0 };
 									for (pfUINT j = 0; j < localStageSize; j++) {
 										if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-											vkfft_unit_twiddle_f32(pfcos(j * double_PI / localStageSize / pow(2, k)),
+											vkfft_unit_twiddle_f32(&twiddleState, pfcos(j * double_PI / localStageSize / pow(2, k)),
 												pfsin(j * double_PI / localStageSize / pow(2, k)), &tempLUT[2 * (j + localStageSum + axis->specializationConstants.raderContainer[i].RaderRadixOffsetLUT)]);
 										} else {
 											tempLUT[2 * (j + localStageSum + axis->specializationConstants.raderContainer[i].RaderRadixOffsetLUT)] = (float)pfcos(j * double_PI / localStageSize / pow(2, k));
@@ -1067,9 +1072,10 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 							}
 							else {
 								for (pfUINT k = (axis->specializationConstants.raderContainer[i].stageRadix[l] - 1); k > 0; k--) {
+									VkFFTUnitTwiddleState twiddleState = { 0.0 };
 									for (pfUINT j = 0; j < localStageSize; j++) {
 										if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-											vkfft_unit_twiddle_f32(pfcos(j * 2.0 * k / axis->specializationConstants.raderContainer[i].stageRadix[l] * double_PI / localStageSize),
+											vkfft_unit_twiddle_f32(&twiddleState, pfcos(j * 2.0 * k / axis->specializationConstants.raderContainer[i].stageRadix[l] * double_PI / localStageSize),
 												pfsin(j * 2.0 * k / axis->specializationConstants.raderContainer[i].stageRadix[l] * double_PI / localStageSize), &tempLUT[2 * (j + localStageSum + axis->specializationConstants.raderContainer[i].RaderRadixOffsetLUT)]);
 										} else {
 											tempLUT[2 * (j + localStageSum + axis->specializationConstants.raderContainer[i].RaderRadixOffsetLUT)] = (float)pfcos(j * 2.0 * k / axis->specializationConstants.raderContainer[i].stageRadix[l] * double_PI / localStageSize);
@@ -1086,9 +1092,10 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 						for (pfINT l = (pfINT)axis->specializationConstants.raderContainer[i].numStages - 2; l >= 0; l--) {
 							if ((axis->specializationConstants.raderContainer[i].stageRadix[l] & (axis->specializationConstants.raderContainer[i].stageRadix[l] - 1)) == 0) {
 								for (pfUINT k = 0; k < log2(axis->specializationConstants.raderContainer[i].stageRadix[l]); k++) {
+									VkFFTUnitTwiddleState twiddleState = { 0.0 };
 									for (pfUINT j = 0; j < localStageSize; j++) {
 										if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-											vkfft_unit_twiddle_f32(pfcos(j * double_PI / localStageSize / pow(2, k)),
+											vkfft_unit_twiddle_f32(&twiddleState, pfcos(j * double_PI / localStageSize / pow(2, k)),
 												pfsin(j * double_PI / localStageSize / pow(2, k)), &tempLUT[2 * (j + localStageSum + axis->specializationConstants.raderContainer[i].RaderRadixOffsetLUTiFFT)]);
 										} else {
 											tempLUT[2 * (j + localStageSum + axis->specializationConstants.raderContainer[i].RaderRadixOffsetLUTiFFT)] = (float)pfcos(j * double_PI / localStageSize / pow(2, k));
@@ -1100,9 +1107,10 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 							}
 							else {
 								for (pfUINT k = (axis->specializationConstants.raderContainer[i].stageRadix[l] - 1); k > 0; k--) {
+									VkFFTUnitTwiddleState twiddleState = { 0.0 };
 									for (pfUINT j = 0; j < localStageSize; j++) {
 										if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-											vkfft_unit_twiddle_f32(pfcos(j * 2.0 * k / axis->specializationConstants.raderContainer[i].stageRadix[l] * double_PI / localStageSize),
+											vkfft_unit_twiddle_f32(&twiddleState, pfcos(j * 2.0 * k / axis->specializationConstants.raderContainer[i].stageRadix[l] * double_PI / localStageSize),
 												pfsin(j * 2.0 * k / axis->specializationConstants.raderContainer[i].stageRadix[l] * double_PI / localStageSize), &tempLUT[2 * (j + localStageSum + axis->specializationConstants.raderContainer[i].RaderRadixOffsetLUTiFFT)]);
 										} else {
 											tempLUT[2 * (j + localStageSum + axis->specializationConstants.raderContainer[i].RaderRadixOffsetLUTiFFT)] = (float)pfcos(j * 2.0 * k / axis->specializationConstants.raderContainer[i].stageRadix[l] * double_PI / localStageSize);
@@ -1126,11 +1134,12 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 			}
 
 			if ((axis->specializationConstants.axis_upload_id > 0) && (app->configuration.useLUT_4step == 1)) {
+				VkFFTUnitTwiddleState twiddleState = { 0.0 };
 				for (pfUINT i = 0; i < (pfUINT)axis->specializationConstants.stageStartSize.data.i; i++) {
 					for (pfUINT j = 0; j < (pfUINT)axis->specializationConstants.fftDim.data.i; j++) {
 						double angle = 2 * double_PI * ((i * j) / (double)(axis->specializationConstants.stageStartSize.data.i * axis->specializationConstants.fftDim.data.i));
 						if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-							vkfft_unit_twiddle_f32(pfcos(angle),
+							vkfft_unit_twiddle_f32(&twiddleState, pfcos(angle),
 								pfsin(angle), &tempLUT[maxStageSum * 2 + 2 * (i + j * axis->specializationConstants.stageStartSize.data.i)]);
 						} else {
 							tempLUT[maxStageSum * 2 + 2 * (i + j * axis->specializationConstants.stageStartSize.data.i)] = (float)pfcos(angle);
@@ -1140,10 +1149,11 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 				}
 			}
 			if ((((((axis->specializationConstants.performDCT == 3) || (axis->specializationConstants.performDST == 3)) && (axis->specializationConstants.actualInverse == 0)) || (((axis->specializationConstants.performDCT == 2) || (axis->specializationConstants.performDST == 2)) && (axis->specializationConstants.actualInverse == 1))) && ((axis->specializationConstants.axis_upload_id == (axis->specializationConstants.numAxisUploads-1)) && (!((axis->specializationConstants.useBluesteinFFT && (axis->specializationConstants.reverseBluesteinMultiUpload == 1)))))) || (((((axis->specializationConstants.performDCT == 2) || (axis->specializationConstants.performDST == 2)) && (axis->specializationConstants.actualInverse == 0)) || (((axis->specializationConstants.performDCT == 3) || (axis->specializationConstants.performDST == 3)) && (axis->specializationConstants.actualInverse == 1))) && (((axis->specializationConstants.axis_upload_id == 0) && (!((axis->specializationConstants.useBluesteinFFT && (axis->specializationConstants.reverseBluesteinMultiUpload == 0) && (axis->specializationConstants.numAxisUploads > 1))))) || ((axis->specializationConstants.axis_upload_id == (axis->specializationConstants.numAxisUploads-1)) && (axis->specializationConstants.useBluesteinFFT && (axis->specializationConstants.reverseBluesteinMultiUpload == 1)))))) {
+				VkFFTUnitTwiddleState twiddleState = { 0.0 };
 				for (pfUINT j = 0; j < app->configuration.size[axis->specializationConstants.axis_id] / 2 + 2; j++) {
 					double angle = (double_PI / 2.0 / (double)(app->configuration.size[axis->specializationConstants.axis_id])) * j;
 					if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-						vkfft_unit_twiddle_f32(pfcos(angle),
+						vkfft_unit_twiddle_f32(&twiddleState, pfcos(angle),
 							pfsin(angle), &tempLUT[2 * axis->specializationConstants.startDCT3LUT.data.i + 2 * j]);
 					} else {
 						tempLUT[2 * axis->specializationConstants.startDCT3LUT.data.i + 2 * j] = (float)pfcos(angle);
@@ -1152,10 +1162,11 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 				}
 			}
 			if (((axis->specializationConstants.performDCT == 4) || (axis->specializationConstants.performDST == 4)) && (app->configuration.size[axis->specializationConstants.axis_id] % 2 == 0) && ((axis->specializationConstants.axis_upload_id == (axis->specializationConstants.numAxisUploads-1)) && (!((axis->specializationConstants.useBluesteinFFT && (axis->specializationConstants.reverseBluesteinMultiUpload == 1)))))) {
+				VkFFTUnitTwiddleState twiddleState = { 0.0 };
 				for (pfUINT j = 0; j < app->configuration.size[axis->specializationConstants.axis_id] / 4 + 2; j++) {
 					double angle = (double_PI / 2.0 / (double)(app->configuration.size[axis->specializationConstants.axis_id] / 2)) * j;
 					if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-						vkfft_unit_twiddle_f32(pfcos(angle),
+						vkfft_unit_twiddle_f32(&twiddleState, pfcos(angle),
 							pfsin(angle), &tempLUT[2 * axis->specializationConstants.startDCT3LUT.data.i + 2 * j]);
 					} else {
 						tempLUT[2 * axis->specializationConstants.startDCT3LUT.data.i + 2 * j] = (float)pfcos(angle);
@@ -1164,10 +1175,11 @@ static inline VkFFTResult VkFFT_AllocateLUT(VkFFTApplication* app, VkFFTPlan* FF
 				}
 			}
 			if (((axis->specializationConstants.performDCT == 4) || (axis->specializationConstants.performDST == 4)) && (app->configuration.size[axis->specializationConstants.axis_id] % 2 == 0) && (((axis->specializationConstants.axis_upload_id == 0) && (!((axis->specializationConstants.useBluesteinFFT && (axis->specializationConstants.reverseBluesteinMultiUpload == 0) && (axis->specializationConstants.numAxisUploads > 1))))) || ((axis->specializationConstants.axis_upload_id == (axis->specializationConstants.numAxisUploads-1)) && (axis->specializationConstants.useBluesteinFFT && (axis->specializationConstants.reverseBluesteinMultiUpload == 1))))) {
+				VkFFTUnitTwiddleState twiddleState = { 0.0 };
 				for (pfUINT j = 0; j < app->configuration.size[axis->specializationConstants.axis_id] / 2; j++) {
 					double angle = (-double_PI / 8.0 / (double)(app->configuration.size[axis->specializationConstants.axis_id] / 2)) * (2 * j + 1);
 					if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-						vkfft_unit_twiddle_f32(pfcos(angle),
+						vkfft_unit_twiddle_f32(&twiddleState, pfcos(angle),
 							pfsin(angle), &tempLUT[2 * axis->specializationConstants.startDCT4LUT.data.i + 2 * j]);
 					} else {
 						tempLUT[2 * axis->specializationConstants.startDCT4LUT.data.i + 2 * j] = (float)pfcos(angle);
@@ -1727,10 +1739,11 @@ static inline VkFFTResult VkFFT_AllocateLUT_R2C(VkFFTApplication* app, VkFFTPlan
 				deleteVkFFT(app);
 				return VKFFT_ERROR_MALLOC_FAILED;
 			}
+			VkFFTUnitTwiddleState twiddleState = { 0.0 };
 			for (pfUINT i = 0; i < app->configuration.size[0] / 2; i++) {
 				double angle = double_PI * i / (app->configuration.size[0] / 2);
 				if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
-					vkfft_unit_twiddle_f32(pfcos(angle),
+					vkfft_unit_twiddle_f32(&twiddleState, pfcos(angle),
 						pfsin(angle), &tempLUT[2 * i]);
 				} else {
 					tempLUT[2 * i] = (float)pfcos(angle);
