@@ -26,6 +26,7 @@
 #include "vkFFT/vkFFT_PlanManagement/vkFFT_API_handles/vkFFT_ManageMemory.h"
 #include "vkFFT/vkFFT_AppManagement/vkFFT_InitializeApp.h"
 #include "vkFFT/vkFFT_CodeGen/vkFFT_MathUtils/vkFFT_MathUtils.h"
+#include "vkFFT/vkFFT_PlanManagement/vkFFT_HostFunctions/vkFFT_UnitTwiddle.h"
 #ifdef VkFFT_use_FP128_Bluestein_RaderFFT
 #include "fftw3.h"
 #endif
@@ -355,8 +356,13 @@ static inline VkFFTResult VkFFTGeneratePhaseVectors(VkFFTApplication* app, VkFFT
 				for (pfUINT i = 0; i < FFTPlan->actualFFTSizePerAxis[axis_id][axis_id]; i++) {
 					pfUINT rm = (i * i) % (2 * phaseVectorsNonZeroSize);
 					double angle = double_PI * rm / phaseVectorsNonZeroSize;
-					phaseVectors_cast[2 * i] = (i < phaseVectorsNonZeroSize) ? (float)pfcos(angle) : 0;
-					phaseVectors_cast[2 * i + 1] = (i < phaseVectorsNonZeroSize) ? (float)-pfsin(angle) : 0;
+					if ((i < phaseVectorsNonZeroSize) && (!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
+						vkfft_unit_twiddle_f32(pfcos(angle),
+							-pfsin(angle), &phaseVectors_cast[2 * i]);
+					} else {
+						phaseVectors_cast[2 * i] = (i < phaseVectorsNonZeroSize) ? (float)pfcos(angle) : 0;
+						phaseVectors_cast[2 * i + 1] = (i < phaseVectorsNonZeroSize) ? (float)-pfsin(angle) : 0;
+					}
 				}
 				for (pfUINT i = 1; i < phaseVectorsNonZeroSize; i++) {
 					phaseVectors_cast[2 * (FFTPlan->actualFFTSizePerAxis[axis_id][axis_id] - i)] = phaseVectors_cast[2 * i];
@@ -612,8 +618,13 @@ static inline VkFFTResult VkFFTGeneratePhaseVectors(VkFFTApplication* app, VkFFT
 				for (pfUINT i = 0; i < FFTPlan->actualFFTSizePerAxis[axis_id][axis_id]; i++) {
 					pfUINT rm = (i * i) % (2 * phaseVectorsNonZeroSize);
 					double angle = double_PI * rm / phaseVectorsNonZeroSize;
-					phaseVectors_cast[2 * i] = (i < phaseVectorsNonZeroSize) ? (float)pfcos(angle) : 0;
-					phaseVectors_cast[2 * i + 1] = (i < phaseVectorsNonZeroSize) ? (float)pfsin(angle) : 0;
+					if ((i < phaseVectorsNonZeroSize) && (!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
+						vkfft_unit_twiddle_f32(pfcos(angle),
+							pfsin(angle), &phaseVectors_cast[2 * i]);
+					} else {
+						phaseVectors_cast[2 * i] = (i < phaseVectorsNonZeroSize) ? (float)pfcos(angle) : 0;
+						phaseVectors_cast[2 * i + 1] = (i < phaseVectorsNonZeroSize) ? (float)pfsin(angle) : 0;
+					}
 				}
 				for (pfUINT i = 1; i < phaseVectorsNonZeroSize; i++) {
 					phaseVectors_cast[2 * (FFTPlan->actualFFTSizePerAxis[axis_id][axis_id] - i)] = phaseVectors_cast[2 * i];
@@ -1098,8 +1109,13 @@ static inline VkFFTResult VkFFTGenerateRaderFFTKernel(VkFFTApplication* app, VkF
 						for (pfUINT t = 0; t < axis->specializationConstants.raderContainer[i].prime - 1 - j; t++) {
 							g_pow = (g_pow * axis->specializationConstants.raderContainer[i].generator) % axis->specializationConstants.raderContainer[i].prime;
 						}
-						raderFFTkernel[2 * j] = (float)pfcos(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime);
-						raderFFTkernel[2 * j + 1] = (float)(-pfsin(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime));
+						if ((!app->configuration.halfPrecision) && (!app->configuration.halfPrecisionMemoryOnly)) {
+							vkfft_unit_twiddle_f32(pfcos(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime),
+								(-pfsin(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime)), &raderFFTkernel[2 * j]);
+						} else {
+							raderFFTkernel[2 * j] = (float)pfcos(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime);
+							raderFFTkernel[2 * j + 1] = (float)(-pfsin(2.0 * g_pow * double_PI / axis->specializationConstants.raderContainer[i].prime));
+						}
 					}
 				}
 
